@@ -7,7 +7,7 @@ Inserts the container definition into an Amazon ECS task definition JSON file, c
 ```yaml
     - name: Render Amazon ECS task definition
       id: render-web-container
-      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      uses: brunocascio/amazon-ecs-render-task-definition@v1.2.0
       with:
         task-definition: task-definition.json # output file (required)
         container-name: web # container name (required)
