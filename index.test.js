@@ -5,7 +5,17 @@ const fs = require('fs');
 
 jest.mock('@actions/core');
 jest.mock('tmp');
-jest.mock('fs');
+jest.mock('fs', () => ({
+    promises: {
+        access: jest.fn()
+    },
+    constants: {
+        O_CREATE: jest.fn()
+    },
+    rmdirSync: jest.fn(),
+    existsSync: jest.fn(),
+    writeFileSync: jest.fn()
+}));
 
 const mockSMGetSecretValue = jest.fn()
 
@@ -24,10 +34,11 @@ describe('Render task definition', () => {
             .fn()
             .mockReturnValueOnce('task-definition.json') // task-definition
             .mockReturnValueOnce('web')                  // container-name
-            .mockReturnValueOnce('nginx:latest');        // image
+            .mockReturnValueOnce('nginx:latest')         // image
+            .mockReturnValueOnce('FOO=bar\nHELLO=world'); // environment-variables
 
         process.env = Object.assign(process.env, { GITHUB_WORKSPACE: __dirname });
-        process.env = Object.assign(process.env, { RUNNER_TEMP: '/tmp' });
+        process.env = Object.assign(process.env, { RUNNER_TEMP: '/home/runner/work/_temp' });
 
         tmp.fileSync.mockReturnValue({
             name: 'new-task-def-file-name'
@@ -40,7 +51,17 @@ describe('Render task definition', () => {
             containerDefinitions: [
                 {
                     name: "web",
-                    image: "some-other-image"
+                    image: "some-other-image",
+                    environment: [
+                        {
+                            name: "FOO",
+                            value: "not bar"
+                        },
+                        {
+                            name: "DONT-TOUCH",
+                            value: "me"
+                        }
+                    ]
                 },
                 {
                     name: "sidecar",
@@ -69,7 +90,7 @@ describe('Render task definition', () => {
     test('renders the task definition and creates a new task def file', async () => {
         await run();
         expect(tmp.fileSync).toHaveBeenNthCalledWith(1, {
-            dir: '/tmp',
+            tmpdir: '/home/runner/work/_temp',
             prefix: 'task-definition-',
             postfix: '.json',
             keep: true,
@@ -81,7 +102,21 @@ describe('Render task definition', () => {
                 containerDefinitions: [
                     {
                         name: "web",
-                        image: "nginx:latest"
+                        image: "nginx:latest",
+                        environment: [
+                            {
+                                name: "FOO",
+                                value: "bar"
+                            },
+                            {
+                                name: "DONT-TOUCH",
+                                value: "me"
+                            },
+                            {
+                                name: "HELLO",
+                                value: "world"
+                            }
+                        ]
                     },
                     {
                         name: "sidecar",
@@ -93,12 +128,13 @@ describe('Render task definition', () => {
         expect(core.setOutput).toHaveBeenNthCalledWith(1, 'task-definition', 'new-task-def-file-name');
     });
 
-    test('renders a task definition at an absolute path', async () => {
+    test('renders a task definition at an absolute path, and with initial environment empty', async () => {
         core.getInput = jest
             .fn()
             .mockReturnValueOnce('/hello/task-definition.json') // task-definition
             .mockReturnValueOnce('web')                  // container-name
-            .mockReturnValueOnce('nginx:latest');        // image
+            .mockReturnValueOnce('nginx:latest')         // image
+            .mockReturnValueOnce('EXAMPLE=here');        // environment-variables
         jest.mock('/hello/task-definition.json', () => ({
             family: 'task-def-family',
             containerDefinitions: [
@@ -112,7 +148,7 @@ describe('Render task definition', () => {
         await run();
 
         expect(tmp.fileSync).toHaveBeenNthCalledWith(1, {
-            dir: '/tmp',
+            tmpdir: '/home/runner/work/_temp',
             prefix: 'task-definition-',
             postfix: '.json',
             keep: true,
@@ -124,7 +160,13 @@ describe('Render task definition', () => {
                 containerDefinitions: [
                     {
                         name: "web",
-                        image: "nginx:latest"
+                        image: "nginx:latest",
+                        environment: [
+                            {
+                                name: "EXAMPLE",
+                                value: "here"
+                            }
+                        ]
                     }
                 ]
             }, null, 2)

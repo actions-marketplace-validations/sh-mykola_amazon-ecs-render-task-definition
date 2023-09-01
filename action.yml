@@ -1,5 +1,5 @@
-name: 'Amazon ECS "Render Task Definition" Action'
-description: 'Modify your container definition in an Amazon ECS task definition JSON file, creating a new file.'
+name: 'Amazon ECS "Render Task Definition" Action for GitHub Actions'
+description: 'Inserts a container image URI into a container definition in an Amazon ECS task definition JSON file, creating a new file.'
 branding:
   icon: 'cloud'
   color: 'orange'
@@ -13,6 +13,9 @@ inputs:
   image:
     description: 'The URI of the container image to insert into the ECS task definition'
     required: true
+  environment-variables:
+    description: 'Variables to add to the container. Each variable is of the form KEY=value, you can specify multiple variables with multi-line YAML strings.'
+    required: false
   aws-sm-name:
     description: 'The name of secrets manager to be retrieved'
     required: false
@@ -20,5 +23,5 @@ outputs:
   task-definition:
     description: 'The path to the rendered task definition file'
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'dist/index.js'
